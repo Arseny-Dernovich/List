@@ -1,11 +1,12 @@
 #include "My_features.h"
 #include <stdio.h>
-#define LIST_CAPACITY 10
+const int LIST_CAPACITY = 10;
 
 struct Node {
     int data;
     int next;
     int prev;
+    int removed_value;
 };
 
 struct LinkedList {
@@ -16,71 +17,84 @@ struct LinkedList {
     int capacity;
 };
 
+enum List {
+    BAD_HEAD ,
+    BAD_TAIL ,
+    BAD_FREE ,
+    BAD_LINKAGE
+};
+
+int Insert_After (LinkedList *list, int index, int data);
+int Insert_Before (LinkedList *list, int index, int data);
 
 void List_Init (LinkedList *list)
 {
-    list->capacity = LIST_CAPACITY;
-    list->head = -1;
-    list->tail = -1;
-    list->free = 0;
-
     for (int i = 0; i < LIST_CAPACITY - 1; i++) {
         list->nodes[i].next = i + 1;
     }
+
     list->nodes[LIST_CAPACITY - 1].next = -1;
+
+    list->free = 1;
+
+
+    list->capacity = LIST_CAPACITY;
+    list->head = 0;
+    list->nodes[list->head].next = -1;
+    list->nodes[list->head].prev = -1;
+
+    list->tail = list->head;
 }
 
 int Add_To_End (LinkedList *list, int data)
 {
-    if (list->free == -1)
+      if (list->free == -1)
         return -1;
 
-    int newIdx = list->free;
-    list->free = list->nodes[newIdx].next;
-
-    list->nodes[newIdx].data = data;
-    list->nodes[newIdx].next = -1;
-    list->nodes[newIdx].prev = list->tail;
-
-    if (list->tail != -1) {
-        list->nodes[list->tail].next = newIdx;
-    }
-    list->tail = newIdx;
-
-    if (list->head == -1) {
-        list->head = newIdx;
-    }
-
-    return newIdx;
+    return Insert_After (list, list->tail, data);
 }
 
 int Add_To_Start (LinkedList *list, int data)
 {
-    if (list->free == -1) return -1;
+      if (list->free == -1)
+        return -1;
 
-    int newIdx = list->free;
-    list->free = list->nodes[newIdx].next;
+    return Insert_After (list, list->head, data);
+}
 
-    list->nodes[newIdx].data = data;
-    list->nodes[newIdx].next = list->head;
-    list->nodes[newIdx].prev = -1;
 
-    if (list->head != -1) {
-        list->nodes[list->head].prev = newIdx;
-    }
-    list->head = newIdx;
-
-    if (list->tail == -1) {
-        list->tail = newIdx;
+int List_Verify (LinkedList *list)
+{
+    if (list->tail >= list->capacity) {
+        printf ("Error: Invalid tail index\n");
+        return BAD_TAIL;
     }
 
-    return newIdx;
+    int current = list->nodes[list->head].next;
+    while (current != -1) {
+        int next = list->nodes[current].next;
+        if (next != -1 && list->nodes[next].prev != current) {
+            printf ("Error: Bad linkage at index %d\n", current);
+            return BAD_LINKAGE;
+        }
+        current = next;
+    }
+
+    int freeIndex = list->free;
+    while (freeIndex != -1) {
+        if (freeIndex >= list->capacity) {
+            printf ("Error: Invalid free index %d\n", freeIndex);
+            return BAD_FREE;
+        }
+        freeIndex = list->nodes[freeIndex].next;
+    }
+
+    return complete_value;
 }
 
 int Insert_After (LinkedList *list, int index, int data)
 {
     if (index < 0 || index >= list->capacity || list->free == -1) {
-        printf ("Неверный индекс!!!");
         return -1;
     }
 
@@ -103,10 +117,10 @@ int Insert_After (LinkedList *list, int index, int data)
     return newIdx;
 }
 
+
 int Insert_Before (LinkedList *list, int index, int data)
 {
-    if (index < 0 || index >= list->capacity || list->free == -1) {
-        printf ("Неверный индекс!!!");
+    if (index <= 0 || index >= list->capacity || list->free == -1) {
         return -1;
     }
 
@@ -122,8 +136,8 @@ int Insert_Before (LinkedList *list, int index, int data)
     }
     list->nodes[index].prev = newIdx;
 
-    if (list->head == index) {
-        list->head = newIdx;
+    if (list->nodes[list->head].next == index) {
+        list->nodes[list->head].next = newIdx;
     }
 
     return newIdx;
@@ -131,50 +145,25 @@ int Insert_Before (LinkedList *list, int index, int data)
 
 int Remove_Element (LinkedList *list, int index)
 {
-    if (index < 0 || index >= list->capacity) {
-        printf("Error: Invalid index\n");
+    if (index <= 0 || index >= list->capacity) {
         return -1;
     }
 
-    if (list->nodes[index].prev == -1 && list->nodes[index].next == -1 && list->head != index) {
-        printf("Error: Element already free or does not exist in the list\n");
-        return -1;
+    list->nodes[index].removed_value = list->nodes[index].data;
+
+    int prevIdx = list->nodes[index].prev;
+    int nextIdx = list->nodes[index].next;
+
+    if (prevIdx != -1) {
+        list->nodes[prevIdx].next = nextIdx;
+    }
+    if (nextIdx != -1) {
+        list->nodes[nextIdx].prev = prevIdx;
     }
 
-
-    if (index == list->head) {
-
-        list->head = list->nodes[index].next;
-        if (list->head != -1) {
-            list->nodes[list->head].prev = -1;
-        } else {
-            list->tail = -1;
-        }
+    if (list->tail == index) {
+        list->tail = prevIdx;
     }
-
-    else if (index == list->tail) {
-
-        list->tail = list->nodes[index].prev;
-        if (list->tail != -1) {
-            list->nodes[list->tail].next = -1;
-        } else {
-            list->head = -1;
-        }
-    }
-
-    else {
-
-        int prevIdx = list->nodes[index].prev;
-        int nextIdx = list->nodes[index].next;
-
-        if (prevIdx != -1) {
-            list->nodes[prevIdx].next = nextIdx;
-        }
-        if (nextIdx != -1) {
-            list->nodes[nextIdx].prev = prevIdx;
-        }
-    }
-
 
     list->nodes[index].next = list->free;
     list->nodes[index].prev = -1;
@@ -185,48 +174,83 @@ int Remove_Element (LinkedList *list, int index)
 }
 
 
+void Dump_List(LinkedList *list, const char *filename) {
+    FILE *file = fopen(filename, "w");
+    if (!file) return;
 
-void Dump_List (struct LinkedList *list, const char *filename)
-{
-    FILE *file = fopen (filename, "w");
-    fprintf (file, "digraph LinkedList {\n");
-    fprintf (file, "rankdir=LR;\n");
-    fprintf (file, "node [shape=record, style=filled, fillcolor=lightblue, fontname=\"Arial\"];\n");
+    fprintf(file, "digraph LinkedList {\n");
+    fprintf(file, "rankdir=LR; // Горизонтальная ориентация графа\n");
+    fprintf(file, "bgcolor = \"#FFFFFF\";\n");
+    fprintf(file, "nodesep=0.5;\n");
+    fprintf(file, "node [shape=record, style=filled, fillcolor=lightblue fontname=\"Arial\"];\n");
 
+    fprintf(file, "subgraph cluster_nodes {\n");
+    fprintf(file, "rank=same;\n");
+    fprintf (file , "color = \"white\"");
 
-    for (int i = list->head; i != -1; i = list->nodes[i].next) {
-        fprintf (file, "node%d [label=\"<index> IP: %d | <data> data: %d | <next> next: %d | <prev> prev: %d\"];\n",
-                i, i, list->nodes[i].data, list->nodes[i].next, list->nodes[i].prev);
+    for (int i = 0; i < list->capacity; i++) {
+        const char *nodeColor = "lightblue";
+        int value = list->nodes[i].data;
+        if (list->nodes[i].data == 0 && list->nodes[i].prev == -1) {
+            nodeColor = "yellow";
+            value = list->nodes[i].removed_value;
+        } else if (list->nodes[i].data == 0 && list->nodes[i].prev == 0) {
+            nodeColor = "gray";
+        }
+
+        fprintf(file, "NODE_%d [label=\"IP %d | value = %d | next = %d | prev = %d\", fillcolor=%s];\n",
+                i, i, value, list->nodes[i].next, list->nodes[i].prev, nodeColor);
+
+        if (i == list->head) {
+            fprintf(file, "NODE_%d [fillcolor=lightgreen]; // head\n", i);
+        } else if (i == list->tail) {
+            fprintf(file, "NODE_%d [fillcolor=lightcoral]; // tail\n", i);
+        }
     }
 
-    for (int i = list->head; i != -1 && list->nodes[i].next != -1; i = list->nodes[i].next) {
-        fprintf (file, "node%d:<next> -> node%d:<index> [label=\"next\", color=green, fontcolor=green];\n",
-                i, list->nodes[i].next);
+    fprintf(file, "}\n");
+
+    for (int i = 0; i < list->capacity - 1; i++) {
+        fprintf(file, "NODE_%d -> NODE_%d [penwidth=2, color=\"#FFFFFF\" , weight = 20];\n", i, i + 1);
     }
 
-    for (int i = list->tail; i != -1 && list->nodes[i].prev != -1; i = list->nodes[i].prev) {
-        fprintf (file, "node%d:<prev> -> node%d:<index> [label=\"prev\", color=red, fontcolor=red];\n",
-                i, list->nodes[i].prev);
-    }
+    for (int i = 0; i < list->capacity; i++) {
 
+        if (list->nodes[i].data == 0 && list->nodes[i].prev == 0) continue;
+        if (list->nodes[i].next != -1) {
+            fprintf(file, "NODE_%d -> NODE_%d [label=\"next\", color=green, weight=1];\n", i, list->nodes[i].next);
+        }
+
+        if (list->nodes[i].prev != -1) {
+            fprintf(file, "NODE_%d -> NODE_%d [label=\"prev\", color=red, weight=1];\n", i, list->nodes[i].prev);
+        }
+    }
 
     if (list->head != -1) {
-        fprintf (file, "head [shape=plaintext, label=\"head\"];\n");
-        fprintf (file, "head -> node%d:<index> [color=blue, style=dashed];\n", list->head);
+        fprintf(file, "head [shape=plaintext, label=\"head\" , color = pink];\n");
+        fprintf(file, "head -> NODE_%d [color=blue, style=dashed];\n", list->head);
     }
 
     if (list->tail != -1) {
-        fprintf (file, "tail [shape=plaintext, label=\"tail\"];\n");
-        fprintf (file, "tail -> node%d:<index> [color=blue, style=dashed];\n", list->tail);
+        fprintf(file, "tail [shape=plaintext, label=\"tail\", color = pink];\n", list->tail);
+        fprintf(file, "tail -> NODE_%d [color=blue, style=dashed];\n", list->tail);
     }
 
-    fprintf (file, "}\n");
-    fclose (file);
+    int freeIndex = list->free;
+    while (freeIndex != -1) {
+        fprintf(file, "free [shape=plaintext, label=\"free\", color=pink];\n");
+        fprintf(file, "free -> NODE_%d [color=green, style=dashed];\n", freeIndex);
+        freeIndex = list->nodes[freeIndex].next;
+    }
+
+    fprintf(file, "}\n");
+    fclose(file);
 }
 
 
 
-int main()
+
+int main ()
 {
     LinkedList list = {};
     List_Init (&list);
@@ -237,7 +261,10 @@ int main()
     Add_To_End (&list, 40);
     Add_To_End (&list, 50);
     Add_To_End (&list, 60);
-    Insert_After (&list , 0 , 25);
+    Insert_After (&list , 2 , 25);
+    Remove_Element (&list , 3);
+    List_Verify (&list);
+
     // Add_To_Start (&list, 70);
     // Add_To_Start (&list, 80);
     // Add_To_End (&list, 90);
@@ -247,15 +274,17 @@ int main()
 //     for (int i = 0 ; i < LIST_CAPACITY ; i++)
 //         printf ("%d ,\t" , list.nodes[i].data);
 //     printf ("\n");
-//     printf ("[");
-//     for (int i = 0 ; i < LIST_CAPACITY ; i++)
-//         printf ("%d ,\t" , list.nodes[i].next);
+    // printf ("[");
+    // for (int i = 0 ; i < LIST_CAPACITY ; i++)
+    //     printf ("%d ,\t" , list.nodes[i].next);
 //
 //     printf ("head = %d" , list.head);
 
-    Dump_List (&list, "list.dot");
 
+    Dump_List (&list, "list.dot");
     system ("dot -Tpng list.dot -o list.png");
 
     return 0;
 }
+
+
